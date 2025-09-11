@@ -1,0 +1,7 @@
+Title: Stay Safe and Ensure the security of the websites you visit
+
+Description: We launched StafeSafe as a free online platform to strengthen public awareness and protection against online threats. The tool evaluates the credibility of websites by analyzing them across a set of defined parameters, providing users with a clear rating on their trustworthiness. Through this service, individuals can quickly determine whether a website is legitimate or if it poses risks such as phishing scams and other forms of cyber fraud. By making this resource widely accessible, we aim to promote safer browsing habits, reduce the chances of falling victim to malicious schemes, and support the UAE’s broader commitment to building a secure and resilient digital environment.
+
+CTA Text: StaySafe Now
+
+Link: https://staysafe.csc.gov.ae/
