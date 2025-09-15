@@ -1,0 +1,72 @@
+<div class="datetime-fix-fragment"></div>
+
+----------------------------------------------
+
+/* Fix the time section layout */
+.clay-datetime-picker .time {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+}
+
+.clay-datetime-picker .time input {
+    width: 50px !important;
+    text-align: center;
+    font-size: 14px;
+}
+
+.clay-datetime-picker .time .btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    width: 28px;
+}
+
+/* Prevent clipping */
+.clay-datetime-picker-dropdown {
+    overflow: visible !important;
+}
+
+--------------------------------------------------
+
+(() => {
+  function fixDateTimePicker() {
+    const pickers = document.querySelectorAll('.clay-datetime-picker');
+
+    pickers.forEach(picker => {
+      const timeSection = picker.querySelector('.time');
+      if (timeSection) {
+        timeSection.style.display = 'flex';
+        timeSection.style.alignItems = 'center';
+      }
+
+      // Disable future dates
+      const dateInputs = picker.querySelectorAll('input.form-control');
+      dateInputs.forEach(input => {
+        if (input.type === 'text' && input.getAttribute('placeholder')?.includes('_')) {
+          input.addEventListener('change', () => {
+            const val = new Date(input.value);
+            const now = new Date();
+
+            // If future date, reset to today
+            if (val > now) {
+              input.value = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+              alert("Future dates are not allowed.");
+            }
+          });
+        }
+      });
+    });
+  }
+
+  // Run once on load
+  fixDateTimePicker();
+
+  // Re-run when user opens picker
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.clay-datetime-picker')) {
+      setTimeout(fixDateTimePicker, 200);
+    }
+  });
+})();
