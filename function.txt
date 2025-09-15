@@ -1,0 +1,46 @@
+function (fragmentElement, configuration) {
+  // Change only when site language is Arabic
+  const isArabic = () => {
+    const id = (Liferay.ThemeDisplay.getLanguageId && Liferay.ThemeDisplay.getLanguageId()) || '';
+    return id.startsWith('ar');
+  };
+
+  // OPTIONAL: scope to a specific Form widget by its CSS ID (set it in the widget's Advanced → CSS ID)
+  // e.g., set CSS ID = "form-ar" on the Form widget
+  const root =
+    document.getElementById('form-ar')    // if you set it
+    || document;                           // else act on the whole page
+
+  const apply = () => {
+    if (!isArabic()) return;
+
+    const selects = root.querySelectorAll('[data-ddm-field-type="select"] select');
+    selects.forEach((sel) => {
+      const opt = sel.querySelector('option[value=""]');
+      if (opt && opt.textContent.trim() !== 'اختر خيارًا') {
+        opt.textContent = 'اختر خيارًا'; // Arabic for "Choose an option"
+      }
+    });
+  };
+
+  // Run once on load
+  apply();
+
+  // Re-run on SPA navigations
+  if (Liferay.on) {
+    Liferay.on('endNavigate', apply);
+  }
+
+  // Re-run if the form re-renders dynamically
+  const mo = new MutationObserver(apply);
+  mo.observe(root, { childList: true, subtree: true });
+
+  // Basic cleanup if fragment is removed
+  fragmentElement.addEventListener('DOMNodeRemoved', function handle(e) {
+    if (e.target === fragmentElement) {
+      mo.disconnect();
+      if (Liferay.detach) Liferay.detach('endNavigate', apply);
+      fragmentElement.removeEventListener('DOMNodeRemoved', handle);
+    }
+  });
+}
