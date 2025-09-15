@@ -1,0 +1,38 @@
+const translateOpenMenu = () => {
+  const AR_PLACEHOLDER = 'اختر خيارًا';
+  const EN_DEFAULT = 'Choose an Option';
+  const EN_CANDIDATES = ['Choose an Option','Choose an option','Select an Option','Select',''];
+
+  // Open/visible menus (Clay adds .show)
+  const menus = document.querySelectorAll('.dropdown-menu.show, [role="listbox"]');
+
+  menus.forEach((menu) => {
+    const style = window.getComputedStyle(menu);
+    if (style.display === 'none' || style.visibility === 'hidden') return;
+
+    // 1) Your build: explicit id
+    let opt =
+      menu.querySelector('#chooseAnOption');
+
+    // 2) Fallbacks (some builds don’t use the id but keep it as the first active option)
+    if (!opt) {
+      opt =
+        menu.querySelector('[role="option"].dropdown-item.active[aria-selected="true"]') ||
+        menu.querySelector('[role="option"].dropdown-item[aria-selected="true"]');
+    }
+
+    if (!opt) return;
+
+    // Save original once for restoration
+    if (!opt.dataset.origText) opt.dataset.origText = (opt.textContent || '').trim();
+
+    const current = (opt.textContent || '').trim();
+    const langIsArabic = (document.documentElement.getAttribute('lang') || '').toLowerCase().startsWith('ar');
+
+    if (langIsArabic) {
+      if (EN_CANDIDATES.includes(current)) opt.textContent = AR_PLACEHOLDER;
+    } else {
+      if (current === AR_PLACEHOLDER) opt.textContent = opt.dataset.origText || EN_DEFAULT;
+    }
+  });
+};
