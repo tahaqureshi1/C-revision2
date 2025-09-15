@@ -1,0 +1,32 @@
+const todayISO = new Date().toISOString().split("T")[0];
+
+  const disableFutureDates = () => {
+    // Find all date-picker inputs on this page
+    document.querySelectorAll('.date-picker input.form-control').forEach(input => {
+      // Apply max attribute (blocks manual typing beyond today)
+      input.setAttribute('max', todayISO);
+
+      // Attach a listener to block selecting future dates in the popup
+      input.addEventListener('change', () => {
+        const val = new Date(input.value);
+        const now = new Date();
+        if (val > now) {
+          input.value = todayISO; // reset to today if user bypasses
+        }
+      });
+    });
+  };
+
+  // Run once on load
+  disableFutureDates();
+
+  // Also rerun if the form rerenders
+  const mo = new MutationObserver(disableFutureDates);
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // Cleanup when fragment removed
+  fragmentElement.addEventListener('DOMNodeRemoved', e => {
+    if (e.target === fragmentElement) {
+      mo.disconnect();
+    }
+  });
