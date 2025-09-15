@@ -1,0 +1,132 @@
+ const AR_PLACEHOLDER = 'اختر خيارًا';
+  const EN_DEFAULT = 'Choose an Option';
+  const EN_CANDIDATES = ['Choose an Option','Choose an option','Select an Option','Select',''];
+
+  const isArabic = () => {
+    const id = (Liferay.ThemeDisplay.getLanguageId && Liferay.ThemeDisplay.getLanguageId()) || '';
+    return id.toLowerCase().startsWith('ar');
+  };
+
+  // Scope (optional): set your Form widget CSS ID to "form-ar" to limit scope
+  const root = document.getElementById('form-ar') || document;
+
+  // --- Helpers
+  const getPicklistButtons = () =>
+    root.querySelectorAll(
+      '.form-group button.form-control-select[role="combobox"], .form-group button[role="combobox"].form-control-select-secondary'
+    );
+
+  // Translate the dropdown MENU for a given field group (after it opens)
+  const translateListboxForGroup = (group) => {
+    // Clay may portal the menu elsewhere; just search visible menus in the doc
+    const menus = document.querySelectorAll('.dropdown-menu, [role="listbox"]');
+    menus.forEach((menu) => {
+      // Heuristic: only touch menus that are currently visible
+      const style = window.getComputedStyle(menu);
+      if (style.display === 'none' || style.visibility === 'hidden') return;
+
+      // Try to scope by proximity (same section) to avoid touching other menus
+      // If the menu is inside the same group, great; otherwise still ok—placeholder text is universal.
+      const option =
+        menu.querySelector('[role="option"][aria-disabled="true"]') ||
+        menu.querySelector('.dropdown-item.disabled') ||
+        menu.querySelector('[data-value=""], [data-option-value=""], [data-ddm-value=""]');
+
+      if (!option) return;
+
+      const current = (option.textContent || '').trim();
+
+      if (isArabic()) {
+        if (EN_CANDIDATES.includes(current)) option.textContent = AR_PLACEHOLDER;
+      } else {
+        if (current === AR_PLACEHOLDER) option.textContent = EN_DEFAULT;
+      }
+    });
+  };
+
+  const ensureOriginalSaved = (group) => {
+    // tooltip
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv && !tooltipDiv.dataset.origTitle) {
+      tooltipDiv.dataset.origTitle = tooltipDiv.getAttribute('title') || '';
+    }
+    // button text
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      if (!textEl.dataset.origText) textEl.dataset.origText = (textEl.textContent || '').trim();
+    }
+  };
+
+  const setArabic = (group) => {
+    // tooltip
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv) tooltipDiv.setAttribute('title', AR_PLACEHOLDER);
+
+    // button
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      const current = (textEl.textContent || '').trim();
+      if (EN_CANDIDATES.includes(current) || current === (textEl.dataset.origText || '')) {
+        textEl.textContent = AR_PLACEHOLDER;
+      }
+      // translate menu when it opens
+      const trigger = () => setTimeout(() => translateListboxForGroup(group), 0);
+      btn.addEventListener('click', trigger);
+      btn.addEventListener('keydown', (e) => {
+        if (['Enter',' ','ArrowDown','ArrowUp'].includes(e.key)) trigger();
+      });
+    }
+  };
+
+  const setEnglish = (group) => {
+    // tooltip
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv && typeof tooltipDiv.dataset.origTitle !== 'undefined') {
+      tooltipDiv.setAttribute('title', tooltipDiv.dataset.origTitle);
+    }
+    // button
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      if ((textEl.textContent || '').trim() === AR_PLACEHOLDER && typeof textEl.dataset.origText !== 'undefined') {
+        textEl.textContent = textEl.dataset.origText || EN_DEFAULT;
+      }
+    }
+    // also restore menu if it’s open
+    translateListboxForGroup(group);
+  };
+
+  const apply = () => {
+    getPicklistButtons().forEach((btn) => {
+      const group = btn.closest('.form-group');
+      if (!group) return;
+      ensureOriginalSaved(group);
+      if (isArabic()) setArabic(group);
+      else setEnglish(group);
+    });
+  };
+
+  // Initial run
+  apply();
+
+  // Re-run on SPA navigation
+  Liferay.on && Liferay.on('endNavigate', apply);
+
+  // Re-run when menus or fields are re-rendered
+  const mo = new MutationObserver(() => {
+    apply();
+    // Also translate any newly-inserted menus immediately
+    document.querySelectorAll('.form-group').forEach(translateListboxForGroup);
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // Cleanup
+  fragmentElement.addEventListener('DOMNodeRemoved', function handle(e) {
+    if (e.target === fragmentElement) {
+      mo.disconnect();
+      Liferay.detach && Liferay.detach('endNavigate', apply);
+      fragmentElement.removeEventListener('DOMNodeRemoved', handle);
+    }
+  });
