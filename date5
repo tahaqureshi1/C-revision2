@@ -1,0 +1,6 @@
+.date-picker-calendar-footer .time-picker input {
+  color: #000 !important;             /* black text */
+  background-color: #fff !important;  /* white background */
+  width: 60px !important;             /* enough width for hours/minutes/AM-PM */
+  text-align: center;                 /* center the text */
+}
