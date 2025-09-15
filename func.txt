@@ -1,0 +1,91 @@
+const AR_PLACEHOLDER = 'اختر خيارًا';
+
+  // Only act in Arabic
+  const isArabic = () => {
+    const id = (Liferay.ThemeDisplay.getLanguageId && Liferay.ThemeDisplay.getLanguageId()) || '';
+    return id.startsWith('ar');
+  };
+
+  // OPTIONAL: scope to a single form widget by CSS ID (set it in the Form widget → Advanced → CSS ID)
+  // e.g., set CSS ID = "form-ar" on the Form widget
+  const root = document.getElementById('form-ar') || document;
+
+  // If you want to scope to this ONE field only, set this to your data-field-reference, else leave null
+  // From your HTML it's: data-field-reference="Select24634182"
+  const TARGET_FIELD_REFERENCE = null; // e.g., "Select24634182"
+
+  const getTargets = () => {
+    if (TARGET_FIELD_REFERENCE) {
+      // Only this field
+      return root.querySelectorAll(
+        .form-group[data-field-reference="${TARGET_FIELD_REFERENCE}"]
+      );
+    }
+    // All picklist groups
+    return root.querySelectorAll(
+      '.form-group .form-control-select[role="combobox"]'
+    );
+  };
+
+  const updateOneGroup = (groupOrButton) => {
+    // Accept either the group div or the button itself
+    let group = groupOrButton.closest ? groupOrButton.closest('.form-group') : groupOrButton;
+    if (!group || !group.querySelector) return;
+
+    // 1) Update the tooltip container (it holds title="Choose an Option")
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv && tooltipDiv.getAttribute('title') && tooltipDiv.getAttribute('title').toLowerCase().includes('choose')) {
+      tooltipDiv.setAttribute('title', AR_PLACEHOLDER);
+    }
+
+    // 2) Update the Clay combobox button label
+    const btn = group.querySelector('button[role="combobox"]');
+    if (!btn) return;
+
+    // Some builds wrap the text in a span; if not, use the button itself
+    const textContainer = btn.querySelector('.form-control-select-text') || btn;
+    const current = (textContainer.textContent || '').trim();
+
+    if (
+      current === '' ||
+      current === 'Choose an Option' ||
+      current === 'Choose an option' ||
+      current === 'Select an Option' ||
+      current === 'Select'
+    ) {
+      textContainer.textContent = AR_PLACEHOLDER;
+    }
+  };
+
+  const apply = () => {
+    if (!isArabic()) return;
+
+    if (TARGET_FIELD_REFERENCE) {
+      // Exact field mode
+      const groups = root.querySelectorAll(.form-group[data-field-reference="${TARGET_FIELD_REFERENCE}"]);
+      groups.forEach(updateOneGroup);
+    } else {
+      // All picklists
+      const buttons = root.querySelectorAll('.form-group button.form-control-select[role="combobox"], .form-group button[role="combobox"].form-control-select-secondary');
+      buttons.forEach(updateOneGroup);
+    }
+  };
+
+  // Run now
+  apply();
+
+  // Re-run on SPA navigations (Liferay pages)
+  Liferay.on && Liferay.on('endNavigate', apply);
+
+  // Re-run when DDM re-renders (opening the dropdown or validation can rehydrate)
+  const mo = new MutationObserver(apply);
+  mo.observe(root, { childList: true, subtree: true });
+
+  // Cleanup when fragment is removed
+  fragmentElement.addEventListener('DOMNodeRemoved', function handle(e) {
+    if (e.target === fragmentElement) {
+      mo.disconnect();
+      Liferay.detach && Liferay.detach('endNavigate', apply);
+      fragmentElement.removeEventListener('DOMNodeRemoved', handle);
+    }
+  });
