@@ -1,0 +1,164 @@
+ const AR_PLACEHOLDER = 'اختر خيارًا';
+  const EN_DEFAULT = 'Choose an Option';
+  const EN_CANDIDATES = ['Choose an Option','Choose an option','Select an Option','Select',''];
+
+  const getHtmlLang = () => (document.documentElement.getAttribute('lang') || '').toLowerCase();
+  const isArabic = () => getHtmlLang().startsWith('ar');
+
+  // Optional: scope to a specific Form widget by CSS ID "form-ar"
+  const root = document.getElementById('form-ar') || document;
+
+  // ---------- Core helpers ----------
+  const getPicklistButtons = () =>
+    root.querySelectorAll(
+      '.form-group button.form-control-select[role="combobox"], .form-group button[role="combobox"].form-control-select-secondary'
+    );
+
+  const ensureOriginalSaved = (group) => {
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv && !tooltipDiv.dataset.origTitle) {
+      tooltipDiv.dataset.origTitle = tooltipDiv.getAttribute('title') || '';
+    }
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      if (!textEl.dataset.origText) textEl.dataset.origText = (textEl.textContent || '').trim();
+    }
+  };
+
+  const setButtonAndTooltip = (group) => {
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    const btn = group.querySelector('button[role="combobox"]');
+    if (!btn) return;
+
+    const textEl = btn.querySelector('.form-control-select-text') || btn;
+
+    if (isArabic()) {
+      if (tooltipDiv) tooltipDiv.setAttribute('title', AR_PLACEHOLDER);
+      const current = (textEl.textContent || '').trim();
+      if (EN_CANDIDATES.includes(current) || current === (textEl.dataset.origText || '')) {
+        textEl.textContent = AR_PLACEHOLDER;
+      }
+    } else {
+      if (tooltipDiv && typeof tooltipDiv.dataset.origTitle !== 'undefined') {
+        tooltipDiv.setAttribute('title', tooltipDiv.dataset.origTitle);
+      }
+      const current = (textEl.textContent || '').trim();
+      if (current === AR_PLACEHOLDER && typeof textEl.dataset.origText !== 'undefined') {
+        textEl.textContent = textEl.dataset.origText || EN_DEFAULT;
+      }
+    }
+  };
+
+  // Find the live dropdown menu Clay renders and translate the first disabled option
+  const translateOpenMenu = () => {
+    // Clay often marks open menu with .show; role/listbox varies by version
+    const menus = document.querySelectorAll('.dropdown-menu.show, [role="listbox"]');
+    menus.forEach((menu) => {
+      const style = window.getComputedStyle(menu);
+      if (style.display === 'none' || style.visibility === 'hidden') return;
+
+      // Common placeholder selectors (first disabled/empty option)
+      const opt =
+        menu.querySelector('[role="option"][aria-disabled="true"]') ||
+        menu.querySelector('.dropdown-item.disabled') ||
+        menu.querySelector('[data-value=""], [data-option-value=""], [data-ddm-value=""]');
+
+      if (!opt) return;
+
+      // Save original once for restoration
+      if (!opt.dataset.origText) opt.dataset.origText = (opt.textContent || '').trim();
+
+      if (isArabic()) {
+        if (EN_CANDIDATES.includes((opt.textContent || '').trim())) {
+          opt.textContent = AR_PLACEHOLDER;
+        }
+      } else {
+        if ((opt.textContent || '').trim() === AR_PLACEHOLDER) {
+          opt.textContent = opt.dataset.origText || EN_DEFAULT;
+        }
+      }
+    });
+  };
+
+  // When a combobox opens (aria-expanded becomes true), retry to catch menu creation
+  const bindOpenHandlersOnce = (btn) => {
+    if (btn.dataset.i18nBound === '1') return;
+    const tryTranslateMenuWithRetries = () => {
+      let tries = 0;
+      const maxTries = 10;   // ~10 * 50ms = 500ms
+      const tick = () => {
+        translateOpenMenu();
+        if (++tries < maxTries && btn.getAttribute('aria-expanded') === 'true') {
+          setTimeout(tick, 50);
+        }
+      };
+      // first tick next micro/macrotask
+      setTimeout(tick, 0);
+    };
+
+    // On click or keyboard open
+    btn.addEventListener('click', () => {
+      // Wait until aria-expanded flips then start retries
+      setTimeout(() => {
+        if (btn.getAttribute('aria-expanded') === 'true') tryTranslateMenuWithRetries();
+      }, 0);
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (['Enter',' ','ArrowDown','ArrowUp'].includes(e.key)) {
+        setTimeout(() => {
+          if (btn.getAttribute('aria-expanded') === 'true') tryTranslateMenuWithRetries();
+        }, 0);
+      }
+    });
+
+    // Also watch aria-expanded directly
+    const attrObs = new MutationObserver(() => {
+      if (btn.getAttribute('aria-expanded') === 'true') tryTranslateMenuWithRetries();
+    });
+    attrObs.observe(btn, { attributes: true, attributeFilter: ['aria-expanded'] });
+    btn.dataset.i18nBound = '1';
+  };
+
+  const applyAll = () => {
+    getPicklistButtons().forEach((btn) => {
+      const group = btn.closest('.form-group');
+      if (!group) return;
+      ensureOriginalSaved(group);
+      setButtonAndTooltip(group);
+      bindOpenHandlersOnce(btn);
+    });
+    // If any menu is already open, translate it too
+    translateOpenMenu();
+  };
+
+  // Initial apply
+  applyAll();
+
+  // Re-apply on SPA navigations
+  Liferay.on && Liferay.on('endNavigate', applyAll);
+
+  // Re-apply when fields/menus re-render
+  const mo = new MutationObserver(() => applyAll());
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // Detect language switches (no reload)
+  let lastLang = getHtmlLang();
+  const langObserver = new MutationObserver(() => {
+    const now = getHtmlLang();
+    if (now !== lastLang) {
+      lastLang = now;
+      applyAll(); // re-apply immediately on language change
+    }
+  });
+  langObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
+  // Cleanup
+  fragmentElement.addEventListener('DOMNodeRemoved', function handle(e) {
+    if (e.target === fragmentElement) {
+      mo.disconnect();
+      langObserver.disconnect();
+      Liferay.detach && Liferay.detach('endNavigate', applyAll);
+      fragmentElement.removeEventListener('DOMNodeRemoved', handle);
+    }
+  });
