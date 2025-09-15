@@ -1,0 +1,79 @@
+<div id="custom-datetime-fix"></div>
+
+----------------------------------------------
+
+/* Make time picker inputs clear & aligned */
+.clay-time {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+}
+
+.clay-time input {
+  width: 45px !important;
+  text-align: center;
+  font-size: 14px;
+  background-color: #fff;
+}
+
+/* Ensure spin buttons are visible */
+.clay-time-inner-spin {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.clay-time-action-group-item {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Disabled style for future dates */
+.date-picker-date.disabled {
+  pointer-events: none !important;
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+
+--------------------------------------------------
+
+(() => {
+  function disableFutureDates(root) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const dateButtons = root.querySelectorAll('.date-picker-date');
+    dateButtons.forEach(btn => {
+      const label = btn.getAttribute('aria-label');
+      if (!label) return;
+
+      const btnDate = new Date(label);
+      if (btnDate > today) {
+        btn.classList.add('disabled');
+        btn.setAttribute('disabled', 'true');
+      }
+    });
+  }
+
+  // Watch for date picker dropdown being added to DOM
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (
+          node.nodeType === 1 &&
+          node.classList.contains('date-picker-dropdown-menu')
+        ) {
+          disableFutureDates(node);
+
+          // Also fix time picker inside popup
+          const time = node.querySelector('.clay-time');
+          if (time) {
+            time.style.display = 'flex';
+          }
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+})();
