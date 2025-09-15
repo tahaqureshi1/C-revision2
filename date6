@@ -1,0 +1,88 @@
+const scopeRoot = document; // page-level
+
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+
+  const disableFutureInOpenPicker = () => {
+    const picker = document.querySelector('.date-picker-dropdown-menu[role="dialog"].date-picker[aria-hidden="false"], .date-picker-dropdown-menu.date-picker.show');
+    if (!picker) return;
+
+    const dayButtons = picker.querySelectorAll('.date-picker-date[aria-label]');
+    dayButtons.forEach(btn => {
+      const lbl = btn.getAttribute('aria-label');
+      if (!lbl) return;
+      const d = new Date(lbl);
+      if (Number.isNaN(d.getTime())) return;
+      d.setHours(0,0,0,0);
+
+      const future = d.getTime() > todayStart.getTime();
+      btn.classList.toggle('disabled', future);
+      btn.setAttribute('aria-disabled', future ? 'true' : 'false');
+      btn.style.pointerEvents = future ? 'none' : '';
+      btn.style.opacity = future ? '0.45' : '';
+      if (future) btn.setAttribute('tabindex','-1'); else btn.removeAttribute('tabindex');
+    });
+  };
+
+  // Re-apply right after opening, and as the calendar re-renders (month/year nav)
+  const bindOpeners = () => {
+    scopeRoot.querySelectorAll('.date-picker-dropdown-toggle').forEach(toggle => {
+      if (toggle.dataset._bindFutureMax === '1') return;
+
+      const runWithRetries = () => {
+        // Try for ~1s to catch async rendering
+        let tries = 0;
+        const tick = () => {
+          disableFutureInOpenPicker();
+          if (++tries < 20) setTimeout(tick, 50);
+        };
+        setTimeout(tick, 0);
+      };
+
+      toggle.addEventListener('click', runWithRetries);
+      toggle.addEventListener('keydown', e => {
+        if (['Enter',' ','ArrowDown','ArrowUp'].includes(e.key)) runWithRetries();
+      });
+
+      // Also react when aria-expanded flips to true
+      const obs = new MutationObserver(() => {
+        if (toggle.getAttribute('aria-expanded') === 'true') runWithRetries();
+      });
+      obs.observe(toggle, {attributes:true, attributeFilter:['aria-expanded']});
+
+      toggle.dataset._bindFutureMax = '1';
+    });
+  };
+
+  // Watch the calendar dialog itself for month/year changes (re-render)
+  const dialogObserver = new MutationObserver(disableFutureInOpenPicker);
+
+  const hookDialogObserver = () => {
+    const dlg = document.querySelector('.date-picker-dropdown-menu[role="dialog"].date-picker');
+    if (dlg && !dlg.dataset._obsAttached) {
+      dialogObserver.observe(dlg, {childList:true, subtree:true});
+      dlg.dataset._obsAttached = '1';
+    }
+  };
+
+  const apply = () => {
+    bindOpeners();
+    hookDialogObserver();
+    disableFutureInOpenPicker();
+  };
+
+  // Initial
+  apply();
+
+  // Re-apply on SPA nav / dynamic updates
+  if (window.Liferay?.on) Liferay.on('endNavigate', apply);
+  const pageObserver = new MutationObserver(apply);
+  pageObserver.observe(document.body, {childList:true, subtree:true});
+
+  // Cleanup
+  fragmentElement.addEventListener('DOMNodeRemoved', e => {
+    if (e.target === fragmentElement) {
+      pageObserver.disconnect();
+      dialogObserver.disconnect();
+      if (window.Liferay?.detach) Liferay.detach('endNavigate', apply);
+    }
+  });
