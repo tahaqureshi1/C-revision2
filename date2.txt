@@ -1,0 +1,65 @@
+<div class="datetime-fix-fragment"></div>
+
+----------------------------------------------
+
+/* Ensure time picker is visible */
+.clay-time {
+    display: flex !important;
+    gap: 6px;
+}
+
+.clay-time input {
+    width: 40px !important;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* Disabled future dates */
+.date-picker-date.disabled {
+    pointer-events: none !important;
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+
+--------------------------------------------------
+
+(() => {
+  function disableFutureDates() {
+    const today = new Date();
+    today.setHours(0,0,0,0); // normalize time
+
+    // Find all date picker buttons
+    const dateButtons = document.querySelectorAll('.date-picker-date');
+
+    dateButtons.forEach(btn => {
+      const label = btn.getAttribute('aria-label');
+      if (!label) return;
+
+      const btnDate = new Date(label);
+
+      // Disable if in the future
+      if (btnDate > today) {
+        btn.classList.add('disabled');
+        btn.setAttribute('disabled', 'true');
+      } else {
+        btn.classList.remove('disabled');
+        btn.removeAttribute('disabled');
+      }
+    });
+  }
+
+  function fixDateTimePicker() {
+    disableFutureDates();
+  }
+
+  // Run once on load
+  fixDateTimePicker();
+
+  // Run again when user changes month/year
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.date-picker-nav') || e.target.closest('.date-picker-date')) {
+      setTimeout(disableFutureDates, 200);
+    }
+  });
+})();
