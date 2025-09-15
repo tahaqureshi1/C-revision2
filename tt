@@ -1,0 +1,13 @@
+(function(){
+  const menus = [...document.querySelectorAll(".dropdown-menu.show, .dropdown-menu, [role='listbox']")];
+  const hits = [];
+  for (const menu of menus) {
+    const a = menu.querySelector("[role='option'][aria-disabled='true']");
+    const b = menu.querySelector(".dropdown-item.disabled, .disabled");
+    const c = menu.querySelector("[data-value=''], [data-option-value=''], [data-ddm-value='']");
+    const pick = a || b || c;
+    if (pick) hits.push({menu, text: pick.textContent.trim(), node: pick});
+  }
+  console.log("Placeholder hits:", hits);
+  return hits;
+})();
