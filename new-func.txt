@@ -1,0 +1,88 @@
+const AR_PLACEHOLDER = 'اختر خيارًا';
+  const EN_CANDIDATES = ['Choose an Option','Choose an option','Select an Option','Select','']; // safety
+
+  const isArabic = () => {
+    const id = (Liferay.ThemeDisplay.getLanguageId && Liferay.ThemeDisplay.getLanguageId()) || '';
+    return id.toLowerCase().startsWith('ar');
+  };
+
+  const root = document.getElementById('form-ar') || document;
+
+  const getButtons = () =>
+    root.querySelectorAll('.form-group button.form-control-select[role="combobox"], .form-group button[role="combobox"].form-control-select-secondary');
+
+  const ensureOriginalSaved = (group) => {
+    // tooltip container
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv && !tooltipDiv.dataset.origTitle) {
+      tooltipDiv.dataset.origTitle = tooltipDiv.getAttribute('title') || '';
+    }
+    // button label
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      if (!textEl.dataset.origText) {
+        textEl.dataset.origText = (textEl.textContent || '').trim();
+      }
+    }
+  };
+
+  const setArabic = (group) => {
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv) tooltipDiv.setAttribute('title', AR_PLACEHOLDER);
+
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      const current = (textEl.textContent || '').trim();
+      if (EN_CANDIDATES.includes(current) || current === (textEl.dataset.origText || '')) {
+        textEl.textContent = AR_PLACEHOLDER;
+      }
+    }
+  };
+
+  const setEnglish = (group) => {
+    const tooltipDiv = group.querySelector('[data-tooltip-align][title]');
+    if (tooltipDiv && typeof tooltipDiv.dataset.origTitle !== 'undefined') {
+      tooltipDiv.setAttribute('title', tooltipDiv.dataset.origTitle);
+    }
+
+    const btn = group.querySelector('button[role="combobox"]');
+    if (btn) {
+      const textEl = btn.querySelector('.form-control-select-text') || btn;
+      // restore original placeholder (whatever it was) only if currently Arabic
+      if ((textEl.textContent || '').trim() === AR_PLACEHOLDER && typeof textEl.dataset.origText !== 'undefined') {
+        textEl.textContent = textEl.dataset.origText || 'Choose an Option';
+      }
+    }
+  };
+
+  const apply = () => {
+    const buttons = getButtons();
+    buttons.forEach((btn) => {
+      const group = btn.closest('.form-group');
+      if (!group) return;
+      ensureOriginalSaved(group);
+      if (isArabic()) setArabic(group);
+      else setEnglish(group);
+    });
+  };
+
+  // Run now
+  apply();
+
+  // Re-run on SPA navigation
+  Liferay.on && Liferay.on('endNavigate', apply);
+
+  // Re-run when form re-renders
+  const mo = new MutationObserver(apply);
+  mo.observe(root, { childList: true, subtree: true });
+
+  // Cleanup
+  fragmentElement.addEventListener('DOMNodeRemoved', function handle(e) {
+    if (e.target === fragmentElement) {
+      mo.disconnect();
+      Liferay.detach && Liferay.detach('endNavigate', apply);
+      fragmentElement.removeEventListener('DOMNodeRemoved', handle);
+    }
+  });
