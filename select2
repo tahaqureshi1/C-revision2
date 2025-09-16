@@ -1,0 +1,76 @@
+(function () {
+  // Run only for Arabic locales
+  var htmlLang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
+  var liferayLang = (window.Liferay && Liferay.ThemeDisplay && Liferay.ThemeDisplay.getLanguageId && Liferay.ThemeDisplay.getLanguageId().toLowerCase()) || '';
+  var isArabic = /^ar/.test(htmlLang) || /^ar/.test(liferayLang);
+  if (!isArabic) return;
+
+  // Map of English → Arabic labels we expect to see
+  var MAP = {
+    'select': 'اختيار',
+    'select file': 'اختيار ملف',
+    'select item': 'اختيار عنصر',
+    'choose': 'اختيار',
+    'choose file': 'اختيار ملف'
+  };
+
+  // Buttons in this field are labels with .select-button
+  // and often point to an input whose id ends with 'inputFileGuestUpload'
+  var scopeSelector = '.liferay-ddm-form-field-document-library';
+  var btnSelector = scopeSelector + ' label.select-button, ' + scopeSelector + ' .btn.select-button';
+
+  function norm(s){ return (s || '').replace(/\s+/g,' ').trim().toLowerCase(); }
+
+  function translate(btn) {
+    if (!btn || btn.dataset.i18nPatched === '1') return;
+
+    // Extra guard: ensure this is the upload button for this field
+    var forId = btn.getAttribute('for') || '';
+    if (forId && !/inputFileGuestUpload$/i.test(forId)) {
+      // Still allow translating if the text matches exactly
+    }
+
+    var current = norm(btn.textContent);
+    var arabic = MAP[current] || (MAP['select']);
+
+    // Preserve any icons inside
+    var icons = Array.prototype.map.call(btn.querySelectorAll('svg, i, span.lexicon-icon'), function (el) {
+      return el.outerHTML;
+    }).join(' ');
+
+    // Replace text but keep icons
+    btn.innerHTML = arabic + (icons ? (' ' + icons) : '');
+    btn.setAttribute('dir', 'rtl');
+    btn.dataset.i18nPatched = '1';
+  }
+
+  function run(root) {
+    var scope = root || document;
+    var nodes = scope.querySelectorAll(btnSelector);
+    for (var i = 0; i < nodes.length; i++) translate(nodes[i]);
+  }
+
+  // Initial pass
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ run(document); });
+  } else {
+    run(document);
+  }
+
+  // Observe dynamic updates (Forms re-render, modal opens, SPA)
+  var mo = new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var m = mutations[i];
+      for (var j = 0; j < m.addedNodes.length; j++) {
+        var n = m.addedNodes[j];
+        if (n.nodeType === 1) run(n);
+      }
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // Liferay SPA navigation hook
+  if (window.Liferay && Liferay.on) {
+    Liferay.on('endNavigate', function () { setTimeout(function(){ run(document); }, 0); });
+  }
+})();
