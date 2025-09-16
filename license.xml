@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<license>
+	<account-name>Cyber Security Council - Website</account-name>
+	<owner>Cyber Security Council - Website</owner>
+	<description>CSC Prod - DXP 7.4</description>
+	<product-name>DXP Production</product-name>
+	<product-version>7.4</product-version>
+	<license-name>DXP Production (Virtual Cluster)</license-name>
+	<license-type>virtual-cluster</license-type>
+	<license-version>6</license-version>
+	<start-date>Sunday, September 1, 2024 12:00:00 AM GMT</start-date>
+	<expiration-date>Friday, February 27, 2026 12:00:00 AM GMT</expiration-date>
+	<max-cluster-nodes>2</max-cluster-nodes>
+	<instance-size>Sizing 1</instance-size>
+	<key>e0060ae5487aaba780d77bfe333e562922f697287b1ad3a4fa17fb386ce0442a27d8123a4f02863ccfd7fc3b05eb21ade228bfe0d103103e6032487aec51f53a3bb33e28b8ceac7117d3b163f033b6c54a5a86508ff81aa6156a429b3912b71c21b6cbc3518f8abcee258eaf247d0d87e92b6ba176549dd33246e7f62778ea266ca233df</key>
+</license>
