@@ -1,0 +1,129 @@
+const scopeRoot = document; // page-level
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+
+  const isFutureBtn = (btn) => {
+    const lbl = btn?.getAttribute?.('aria-label');
+    if (!lbl) return false;
+    const d = new Date(lbl);
+    if (Number.isNaN(d.getTime())) return false;
+    d.setHours(0,0,0,0);
+    return d.getTime() > todayStart.getTime();
+  };
+
+  // Reusable retry runner to survive async re-renders (month/year nav)
+  const runWithRetries = (attempts = 24, intervalMs = 50) => {
+    let tries = 0;
+    const tick = () => {
+      disableFutureInOpenPicker();
+      if (++tries < attempts) setTimeout(tick, intervalMs);
+    };
+    setTimeout(tick, 0);
+  };
+
+  const disableFutureInOpenPicker = () => {
+    const picker = document.querySelector(
+      '.date-picker-dropdown-menu[role="dialog"].date-picker[aria-hidden="false"], .date-picker-dropdown-menu.date-picker.show'
+    );
+    if (!picker) return;
+
+    const dayButtons = picker.querySelectorAll('.date-picker-date[aria-label]');
+    dayButtons.forEach(btn => {
+      const future = isFutureBtn(btn);
+
+      // Visually disable
+      btn.classList.toggle('disabled', future);
+      btn.setAttribute('aria-disabled', future ? 'true' : 'false');
+      btn.style.pointerEvents = future ? 'none' : '';
+      btn.style.opacity = future ? '0.45' : '';
+      if (future) btn.setAttribute('tabindex','-1'); else btn.removeAttribute('tabindex');
+
+      // If it's a <button>, actually disable it too (survives some handlers)
+      if ('disabled' in btn) btn.disabled = !!future;
+    });
+  };
+
+  // Hard guard: block selection of future dates even if UI re-enables them
+  const attachGuardsToDialog = (dlg) => {
+    if (dlg.dataset._guardsAttached === '1') return;
+
+    const blockIfFuture = (e) => {
+      const target = e.target.closest('.date-picker-date[aria-label]');
+      if (!target) return;
+      if (isFutureBtn(target)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    // Capture phase to beat internal handlers
+    dlg.addEventListener('mousedown', blockIfFuture, true);
+    dlg.addEventListener('click', blockIfFuture, true);
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') blockIfFuture(e);
+    }, true);
+
+    // When month/year controls are used, re-apply with retries
+    const nav = dlg.querySelector('.date-picker-nav') || dlg;
+    nav.addEventListener('click', () => runWithRetries(), true);
+    nav.addEventListener('change', () => runWithRetries(), true);
+
+    dlg.dataset._guardsAttached = '1';
+  };
+
+  // Observe dialog for re-renders and re-apply with retries
+  const dialogObserver = new MutationObserver(() => runWithRetries());
+
+  const hookDialogObserver = () => {
+    const dlg = document.querySelector('.date-picker-dropdown-menu[role="dialog"].date-picker');
+    if (dlg && !dlg.dataset._obsAttached) {
+      dialogObserver.observe(dlg, {childList:true, subtree:true});
+      dlg.dataset._obsAttached = '1';
+      attachGuardsToDialog(dlg);
+    }
+  };
+
+  const bindOpeners = () => {
+    scopeRoot.querySelectorAll('.date-picker-dropdown-toggle').forEach(toggle => {
+      if (toggle.dataset._bindFutureMax === '1') return;
+
+      const trigger = () => runWithRetries();
+
+      toggle.addEventListener('click', trigger);
+      toggle.addEventListener('keydown', e => {
+        if (['Enter',' ','ArrowDown','ArrowUp'].includes(e.key)) trigger();
+      });
+
+      // When dropdown aria-expanded flips to true, re-apply
+      const obs = new MutationObserver(() => {
+        if (toggle.getAttribute('aria-expanded') === 'true') runWithRetries();
+      });
+      obs.observe(toggle, {attributes:true, attributeFilter:['aria-expanded']});
+
+      toggle.dataset._bindFutureMax = '1';
+    });
+  };
+
+  const apply = () => {
+    bindOpeners();
+    hookDialogObserver();
+    runWithRetries(); // ensure enforcement even if DOM is mid-render
+  };
+
+  // Initial
+  apply();
+
+  // Re-apply on SPA nav / dynamic updates
+  if (window.Liferay?.on) Liferay.on('endNavigate', apply);
+  const pageObserver = new MutationObserver(apply);
+  pageObserver.observe(document.body, {childList:true, subtree:true});
+
+  // Cleanup
+  fragmentElement.addEventListener('DOMNodeRemoved', e => {
+    if (e.target === fragmentElement) {
+      pageObserver.disconnect();
+      dialogObserver.disconnect();
+      if (window.Liferay?.detach) Liferay.detach('endNavigate', apply);
+    }
+  });
