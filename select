@@ -1,0 +1,81 @@
+(function () {
+  // Only act for Arabic locales
+  var htmlLang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
+  var liferayLang = (window.Liferay && Liferay.ThemeDisplay && Liferay.ThemeDisplay.getLanguageId && Liferay.ThemeDisplay.getLanguageId().toLowerCase()) || '';
+  var isArabic = /^ar/.test(htmlLang) || /^ar/.test(liferayLang);
+  if (!isArabic) return;
+
+  // What to translate
+  var MAP = {
+    'select': 'اختيار',
+    'select file': 'اختيار ملف',
+    'select item': 'اختيار عنصر',
+    'choose file': 'اختيار ملف',
+    'choose': 'اختيار'
+  };
+
+  // Limit to Document Library / Attachment field buttons
+  var containers = [
+    '.ddm-field-document-library',
+    '.lfr-ddm__file-selector',
+    '.document-library-field'
+  ];
+  var selector = containers.map(function (s) { return s + ' button, ' + s + ' .btn'; }).join(', ');
+
+  function norm(s){ return (s || '').replace(/\s+/g,' ').trim().toLowerCase(); }
+
+  function translateButton(btn) {
+    if (!btn || btn.dataset.i18nPatched === '1') return;
+
+    var raw = norm(btn.textContent);
+    // Exact matches we care about
+    if (!MAP[raw] && !/^(select|select file|select item|choose|choose file)$/.test(raw)) return;
+
+    // Preserve icons (svg / i / lexicon-icon)
+    var icons = Array.prototype.map.call(btn.querySelectorAll('svg, i, span.lexicon-icon'), function (el) {
+      return el.outerHTML;
+    }).join(' ');
+
+    // Pick best label
+    var label = MAP[raw] || MAP['select'];
+
+    // Replace content
+    btn.innerHTML = label + (icons ? (' ' + icons) : '');
+    btn.setAttribute('dir', 'rtl');
+    btn.dataset.i18nPatched = '1';
+  }
+
+  function run(root) {
+    var scope = root || document;
+    Array.prototype.forEach.call(scope.querySelectorAll(selector), translateButton);
+  }
+
+  // Observe dynamic changes (form renders, modal reloads, SPA)
+  var mo = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var m = muts[i];
+      if (m.addedNodes && m.addedNodes.length) {
+        for (var j = 0; j < m.addedNodes.length; j++) {
+          var n = m.addedNodes[j];
+          if (n.nodeType === 1) run(n);
+        }
+      }
+    }
+  });
+
+  function start() {
+    run(document);
+    mo.observe(document.body, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+
+  // Handle Liferay SPA navigations too
+  if (window.Liferay && Liferay.on) {
+    Liferay.on('endNavigate', function () { setTimeout(function(){ run(document); }, 0); });
+  }
+})();
