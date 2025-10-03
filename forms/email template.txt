@@ -1,0 +1,25 @@
+Subject : 
+
+New Video Submission Awaiting Your Review – CSC Awareness Video Contest
+
+Email Body :
+
+Dear Admin ,
+
+A new submission has been received for the Cyber Security Council – Awareness Video Contest and is now pending your review and approval.
+
+Submission Details :
+
+Contestant Name : {{Full_Name}}
+
+Age / Categor y: {{Age}}
+
+Parent/Guardian (if applicable): {{Parent_Name}}
+
+Email : {{Email}}
+
+Phone : {{Phone}}
+
+Video Description : {{Short_Description}}
+
+Uploaded File : [Download Video]
